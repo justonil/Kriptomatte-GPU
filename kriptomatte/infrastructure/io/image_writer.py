@@ -28,7 +28,13 @@ class ImageWriter:
         # Following original logic:
         try:
             if mask.ndim == 2:
-                img = Image.fromarray(mask, mode='L')
+                # Save single-channel masks as transparent PNGs.
+                # The alpha channel carries the mask coverage, while RGB is white
+                # so the mask looks visible over transparency instead of black.
+                alpha = mask.astype(np.uint8)
+                rgb = np.ones((*mask.shape, 3), dtype=np.uint8) * 255
+                rgba = np.dstack((rgb, alpha))
+                img = Image.fromarray(rgba, mode='RGBA')
                 img.save(path)
             elif mask.ndim == 3 and mask.shape[2] == 3:
                 img = Image.fromarray(mask, mode='RGB')
