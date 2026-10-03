@@ -34,6 +34,41 @@ km -i "path to your exr file"
 km  -i "C:\Users\xxx\Pictures\sample.exr"
 ```
 
+### Options
+
+```bash
+km -i "file.exr" -o "output folder"   # where to write the masks (default: next to the EXR)
+km -i "file.exr" -w 8                 # number of worker threads (default: CPU count)
+km -i "file.exr" --gpu                # force GPU acceleration
+km -i "file.exr" --no-gpu             # force CPU only
+km -i "file.exr" -v                   # verbose (DEBUG) logging
+```
+
+## Performance and GPU
+
+The extraction uses several optimizations:
+
+- Cryptomatte channels are read in a single pass per layer instead of one channel at a time.
+- Masks are computed on the GPU with [CuPy](https://cupy.dev/) when a supported NVIDIA GPU and a CUDA Toolkit are available, and the combined preview is built on the GPU as well.
+- PNG encoding happens on a pool of worker threads and overlaps the reading/computation of the next layer, so the CPU compresses images while the GPU computes the next masks.
+
+On a 4800x2160 render with 3 Cryptomatte layers (~440 masks) this reduces the runtime from several minutes to roughly half a minute. If no GPU is available the tool falls back to a multithreaded NumPy path and produces byte-identical output.
+
+To enable the GPU path, install CuPy matching your CUDA Toolkit (the executable already bundles it; this is only needed when running from source):
+
+```bash
+pip install cupy-cuda13x   # or cupy-cuda12x for a CUDA 12 Toolkit
+```
+
+### Faster startup (optional)
+
+The single-file `km.exe` is unpacked by Windows on every run (a few seconds). For the fastest startup build the folder distribution instead and add `dist\km` to your `PATH`:
+
+```bash
+pyinstaller km_onedir.spec
+# produces dist/km/km.exe
+```
+
 ## Important Note:
 
 Currently, the script only supports Cryptomattes stored in 32-bit EXR files. Ensure your EXR files are rendered with 32-bit precision for the script to work correctly.

@@ -2,16 +2,19 @@ import numpy as np
 
 class MaskCompositionService:
     @staticmethod
-    def get_coverage_for_rank(float_id: float, combined_cryptomattes: np.ndarray, rank: int) -> np.ndarray:
+    def get_coverage_for_rank(float_id: float, combined_cryptomattes, rank: int, xp=np) -> np.ndarray:
         """
         Get the coverage mask for a given rank.
         combined_cryptomattes is [H, W, Channels] where Channels are R, G, B, A sequences.
         Rank 0 corresponds to channels 0 (ID) and 1 (Coverage).
         Rank 1 corresponds to channels 2 (ID) and 3 (Coverage).
+
+        ``xp`` allows the caller to run the computation on a different array
+        backend (e.g. CuPy) without the domain layer importing heavy dependencies.
         """
         # Ensure we don't go out of bounds
         if (rank * 2 + 1) >= combined_cryptomattes.shape[2]:
-            return np.zeros((combined_cryptomattes.shape[0], combined_cryptomattes.shape[1]), dtype=np.float32)
+            return xp.zeros((combined_cryptomattes.shape[0], combined_cryptomattes.shape[1]), dtype=xp.float32)
 
         id_rank = combined_cryptomattes[:, :, rank * 2] == float_id
         coverage_rank = combined_cryptomattes[:, :, rank * 2 + 1] * id_rank
@@ -19,7 +22,7 @@ class MaskCompositionService:
         return coverage_rank
 
     @staticmethod
-    def compute_mask(obj_float_id: float, channels_arr: np.ndarray) -> np.ndarray:
+    def compute_mask(obj_float_id: float, channels_arr, xp=np) -> np.ndarray:
         """
         Computes the mask for a specific object ID from the raw channel data.
         channels_arr: numpy array of shape [H, W, N_Channels]
@@ -27,18 +30,17 @@ class MaskCompositionService:
         # Calculate number of ranks (pairs of ID/Coverage)
         # Each rank is 2 channels.
         num_ranks = channels_arr.shape[2] // 2
-        
-        coverage_list = []
-        for rank in range(num_ranks):
-            coverage_rank = MaskCompositionService.get_coverage_for_rank(obj_float_id, channels_arr, rank)
-            coverage_list.append(coverage_rank)
-        
-        if not coverage_list:
-            return np.zeros((channels_arr.shape[0], channels_arr.shape[1]), dtype=np.uint8)
 
-        coverage = sum(coverage_list)
-        coverage = np.clip(coverage, 0.0, 1.0)
-        mask = (coverage * 255).astype(np.uint8)
+        coverage = None
+        for rank in range(num_ranks):
+            rank_coverage = MaskCompositionService.get_coverage_for_rank(obj_float_id, channels_arr, rank, xp=xp)
+            coverage = rank_coverage if coverage is None else coverage + rank_coverage
+
+        if coverage is None:
+            return xp.zeros((channels_arr.shape[0], channels_arr.shape[1]), dtype=xp.uint8)
+
+        coverage = xp.clip(coverage, 0.0, 1.0)
+        mask = (coverage * 255).astype(xp.uint8)
         return mask
 
     @staticmethod

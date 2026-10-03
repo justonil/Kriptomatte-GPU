@@ -2,7 +2,7 @@ import numpy as np
 
 class BitwiseColorService:
     @staticmethod
-    def encode_ids_to_rgb(id_map: np.ndarray) -> np.ndarray:
+    def encode_ids_to_rgb(id_map, xp=np) -> np.ndarray:
         """
         Converts a 2D array of Object IDs into a 3D RGB image using bitwise packing.
 
@@ -12,13 +12,14 @@ class BitwiseColorService:
         - Blue  = Highest 8 bits
 
         Args:
-            id_map: 2D numpy array (uint32 or int) of object IDs.
+            id_map: 2D array (uint32 or int) of object IDs.
+            xp: array backend (NumPy by default, CuPy for GPU).
 
         Returns:
             np.ndarray: [H, W, 3] uint8 array ready to save as PNG.
         """
         # Ensure input is an integer type suitable for bitwise ops
-        id_map = id_map.astype(np.uint32)
+        id_map = id_map.astype(xp.uint32)
 
         # Vectorized bitwise extraction
         # We mask with 0xFF (255) to grab just that byte
@@ -28,7 +29,7 @@ class BitwiseColorService:
 
         # Stack into [Height, Width, 3]
         # astype(uint8) is critical for image saving
-        rgb_image = np.stack((r, g, b), axis=-1).astype(np.uint8)
+        rgb_image = xp.stack((r, g, b), axis=-1).astype(xp.uint8)
 
         return rgb_image
 

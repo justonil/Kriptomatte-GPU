@@ -11,6 +11,13 @@ dependencies = [
   "imath",
 ]
 
+[project.optional-dependencies]
+# Optional GPU acceleration for the mask computation stage (NVIDIA + CUDA).
+# Match the wheel to the installed CUDA Toolkit: cupy-cuda12x / cupy-cuda13x.
+gpu = [
+  "cupy-cuda13x",
+]
+
 [project.urls]
 Homepage = "https://github.com/Risiamu/Kriptomatte-Phase-1"
 Issues = "https://github.com/Risiamu/Kriptomatte-Phase-1/issues"

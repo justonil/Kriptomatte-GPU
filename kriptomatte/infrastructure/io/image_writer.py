@@ -31,9 +31,9 @@ class ImageWriter:
                 # Save single-channel masks as transparent PNGs.
                 # The alpha channel carries the mask coverage, while RGB is white
                 # so the mask looks visible over transparency instead of black.
-                alpha = mask.astype(np.uint8)
-                rgb = np.ones((*mask.shape, 3), dtype=np.uint8) * 255
-                rgba = np.dstack((rgb, alpha))
+                rgba = np.empty((*mask.shape, 4), dtype=np.uint8)
+                rgba[..., :3] = 255
+                rgba[..., 3] = mask
                 img = Image.fromarray(rgba, mode='RGBA')
                 img.save(path)
             elif mask.ndim == 3 and mask.shape[2] == 3:

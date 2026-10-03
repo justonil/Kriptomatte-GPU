@@ -72,35 +72,32 @@ class OpenExrRepository(ImageRepository):
         shape = (height, width)
         
         read_channels_list = []
-        for i, channel_name in enumerate(channels):
+        # Read every requested channel in a single call:
+        # OpenEXR.decrypts/allocates the buffers once instead of once per channel.
+        channel_buffers = exr_file.channels(list(channels))
+        for i, (channel_name, channel_buffer) in enumerate(zip(channels, channel_buffers)):
             logger.debug(f"Reading channel {i+1}/{len(channels)}: {channel_name}")
             # Determine type
             chan_type = header['channels'][channel_name].type
-            
+
             # Match to our internal enum
-            exr_d = None
-            for ed, pd in pixel_dtype.items():
-                if pd == chan_type:
-                    exr_d = ed
-                    break
-            
-            if exr_d == ExrDtype.FLOAT16:
-                np_type = np.float16
-            else:
-                np_type = np.float32
-            
+            np_type = np.float16 if chan_type == pixel_dtype[ExrDtype.FLOAT16] else np.float32
+
             logger.debug(f"Channel type: {chan_type}, Reading as numpy type: {np_type}")
-            channel_buffer = exr_file.channel(channel_name)
             channel_arr = np.frombuffer(channel_buffer, dtype=np_type)
             channel_arr = channel_arr.reshape(shape)
-            
+
             # Cast to float32 if half float, as domain expects standard floats
             if np_type == np.float16:
                  logger.debug("Casting FLOAT16 to FLOAT32...")
                  channel_arr = channel_arr.astype(np.float32)
-                 
+
             read_channels_list.append(channel_arr)
-        
+
+        if not read_channels_list:
+            logger.warning(f"No channels found to read for {path}.")
+            return np.empty((height, width, 0), dtype=np.float32)
+
         logger.debug("Stacking channels into single array...")
         result = np.stack(read_channels_list, axis=-1)
         logger.debug(f"Channels read and stacked. Result shape: {result.shape}")
